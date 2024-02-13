@@ -1,0 +1,38 @@
+name: Publish to Rentry
+
+on:
+  push:
+    branches:
+          - master
+    paths:
+          - 'src/**/*.md'
+
+jobs:
+  publish:
+      runs-on: ubuntu-latest
+
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@v2
+
+        - name: Set up Python
+          uses: actions/setup-python@v2
+          with:
+            python-version: 3.8
+
+
+        - name: Run Rentry
+          env:
+            RENTRY_PASSWORD: ${{ secrets.RENTRY_PASSWORD }}
+          run: |
+                git diff --name-only HEAD^ HEAD | while read file; do
+                    if [[ $file == src/*.md ]]; then
+                        url=$(awk '/^---$/,/^---$/{if (!/^---$/) print}' $file)
+                        contents=$(awk '/^---$/,/^---$/{if (!/^---$/) next}{print}' $file)
+                        if git diff --name-only --diff-filter=A HEAD^ HEAD | grep -q "^$file$"; then
+                            echo $contents | python rentry_api.py new $url
+                        else
+                            echo $contents | python rentry_api.py edit $url
+                        fi
+                    fi
+                done
